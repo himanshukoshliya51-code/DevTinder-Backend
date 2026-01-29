@@ -2,41 +2,32 @@ const express = require('express');
 
 const app = express();
 
-const {adminAuth,userAuth}= require('./middlewares/auth');
+//Error handling......
+app.get("/getUserdata",(req,res) =>{
+//try catch is proper way it should be used always, but what if there are some unhandled errors
 
-
-//Handle auth Middleware for all request(GET,POST,.....)
-app.use("/admin",adminAuth);
-
-app.get("/admin/getAllData",(req,res) =>{
-    res.send("All data sent");
-});
-
-app.get("/admin/deleteUser",(req,res) =>{
-    res.send("All data Deleted");
-});
-
-app.get("/user",userAuth,(req,res) =>{
-    res.send("All data Deleted");
+// try{
+    throw new error("njvdjv");
+    res.send("User data sent");
+// }
+// catch(err){
+// res.status(500).send("some error:.......")
+// }
+//here we have catched error here only so it will not go to the next "/" functon because that function require some error
 });
 
 
-// //Another way to use multiple route handlers
-// //works same way as previous
-// app.get("/user",(req,res,next)=>{
-//     console.log("Handling the route user1..")
-//    // res.send("1st Response...");
-//     next(); // if we donot have next here and res.send then the postman will load foreever the user will not get the response of its call
-//     //here this function is called middleware
-// });
 
-// app.get("/user",(req,res,next)=>{
-//     console.log("Handling the route user2..")
-//     res.send("2nd Response...");
-//     //here this function is called route handler
-//     // next(); here also next will give error in postman 
-    
-// });
+
+//this function will not be called first even if "/" because it has err ,it will only be runned if err present
+//this function will only be called when we have some error otherwise it will not be runned
+app.use("/",(err,req,res,next)=>{//error should be 1st parameter
+if(err){
+    res.status(500).send("Something went wrong");
+}
+});
+//this function should be kept at last of our application  because if anything breaks in our code it should be handled here 
+
 
 
 app.listen(911 , () =>{
