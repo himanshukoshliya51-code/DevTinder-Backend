@@ -20,6 +20,38 @@ app.post("/signup", async (req, res) => {
   }
 });
 
+
+//get user by email
+app.get("/user", async(req,res)=>{
+  const userEmail = req.body.emailId;
+
+  try{
+    const users = await User.find({emailId:userEmail});//in place of find we can also use findOne to find out one object from many of same emailId
+    //findOne() returns the first matching document based on MongoDB’s internal order, which is not guaranteed unless sorting is applied. 
+    if(users.length === 0){
+      res.status(404).send("user not found");
+    }
+    else{
+      res.send(users);
+    }
+  }
+  catch(err){
+    res.status(400).send("something went wrong");
+  }
+
+})
+
+// Feed API - GET/feed - get all the users from the database
+app.get("/feed",async(req,res)=>{
+  try{
+    const users = await User.find({});
+    res.send(users);
+  }
+  catch(err){
+    res.status(400).send("something went wrong");
+  }
+})
+
 connectDB()
   .then(() => {
     console.log("Database connection established...");
