@@ -52,6 +52,35 @@ app.get("/feed",async(req,res)=>{
   }
 })
 
+//to delete a user from the database
+app.delete("/user",async(req,res)=>{
+  const userId = req.body.userId;
+  try{
+        const user = await User.findByIdAndDelete({_id: userId});
+        // Issue a MongoDB findOneAndDelete() command by a document's _id field. In other words, findByIdAndDelete(id) is a shorthand for findOneAndDelete({ _id: id }).
+    //const user = await User.findByIdAndDelete(userId);
+    res.send("User deleted successfully");
+  }
+  catch(err){
+    res.status(400).send("Somenthing went wrong");
+  }
+})
+
+//Update data of the user
+app.patch("/user",async(req,res)=>{
+  const userId = req.body.userId;
+  const data = req.body;
+
+  try{
+    await User.findByIdAndUpdate({ _id : userId },data);
+    res.send("User updated successfully");
+
+  }catch(err){
+    res.status(400).send("Something went wrong");
+  }
+});
+
+
 connectDB()
   .then(() => {
     console.log("Database connection established...");
