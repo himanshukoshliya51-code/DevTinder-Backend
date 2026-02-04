@@ -2,6 +2,7 @@ const express = require("express");
 const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
+const { Error } = require("mongoose");
 
 //middleware added
 //to convert json data in a type of js object
@@ -67,11 +68,25 @@ app.delete("/user",async(req,res)=>{
 })
 
 //Update data of the user
-app.patch("/user",async(req,res)=>{
-  const userId = req.body.userId;
+app.patch("/user/:userId",async(req,res)=>{
+  const userId = req.params?.userId;
   const data = req.body;
-
+  
   try{
+
+    //if the user is updating its profile it can update certain fields in the API
+  const ALLOWED_UPDATES = ["photoURL","about","gender","age","skills"]
+
+  const isUpdateAllowed = Object.keys(data).every((k)=>ALLOWED_UPDATES.includes(k));
+  if(!isUpdateAllowed){
+    throw new Error("Update not Allowed");
+  }
+
+  if(data?.skills.length >10){
+    throw new Error("Skilss cant be more than 10");
+  }
+
+
     await User.findByIdAndUpdate({ _id : userId },data,{
       returnDocument : "after",
       runValidators : true,
