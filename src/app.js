@@ -3,23 +3,39 @@ const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
 const { Error } = require("mongoose");
+const {validateSignUpData} = require("./utils/validation");
+const bcrypt = require("bcrypt");
 
 //middleware added
 //to convert json data in a type of js object
 app.use(express.json());
 
 app.post("/signup", async (req, res) => {
+  //validation of data
+  try {
+  validateSignUpData(req);
+
+
+  //Encrypt the password
+  const { firstName, lastName, emailId, password} = req.body;
+  const passwordHash =await bcrypt.hash(password,10); 
  
   // Creating a new instance of the User model
-  const user = new User(req.body);
+  const user = new User({
+    firstName, 
+    lastName, 
+    emailId, 
+    password:passwordHash,
+  });
 
-  try {
+  
     await user.save();
     res.send("User Added successfully!");
   } catch (err) {
-    res.status(400).send("Error saving the user:" + err.message);
+    res.status(400).send("ERROR : " + err.message);
   }
 });
+
 
 
 //get user by email
