@@ -3,32 +3,34 @@ const connectDB = require("./config/database");
 const app = express();
 const User = require("./models/user");
 const { Error } = require("mongoose");
-const {validateSignUpData} = require("./utils/validation");
+const { validateSignUpData } = require("./utils/validation");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
 //middleware added
 //to convert json data in a type of js object
 app.use(express.json());
+//middleware to read cookies
+app.use(cookieParser());
 
 app.post("/signup", async (req, res) => {
   //validation of data
   try {
-  validateSignUpData(req);
+    validateSignUpData(req);
 
+    //Encrypt the password
+    const { firstName, lastName, emailId, password } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
 
-  //Encrypt the password
-  const { firstName, lastName, emailId, password} = req.body;
-  const passwordHash =await bcrypt.hash(password,10); 
- 
-  // Creating a new instance of the User model
-  const user = new User({
-    firstName, 
-    lastName, 
-    emailId, 
-    password:passwordHash,
-  });
+    // Creating a new instance of the User model
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
 
-  
     await user.save();
     res.send("User Added successfully!");
   } catch (err) {
@@ -37,108 +39,126 @@ app.post("/signup", async (req, res) => {
 });
 
 //login api
-app.post("/login",async(req,res)=>{
-  try{
-    const{emailId,password}= req.body;
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
 
-    const user = await User.findOne({emailId:emailId});
-    if(!user){
+    const user = await User.findOne({ emailId: emailId });
+    if (!user) {
       throw new Error("Invalid credentials");
     }
 
-    const isPasswordValid = await bcrypt.compare(password,user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if(isPasswordValid){
+    if (isPasswordValid) {
+      //Create a JWT token
+      const token = await jwt.sign({ _id: user._id }, "DEV@Tinder$790");
+      console.log(token);
+
+      //Add the token to cokkie and send the response back to the user
+      res.cookie("token", token);
       res.send("Login Successfull!!!");
-    }
-    else{
+    } else {
       throw new Error("Invalid credentials");
     }
-
-
-  }
-  catch(err){
+  } catch (err) {
     res.status(400).send("ERROR : " + err.message);
-  }
-})
-
-
-//get user by email
-app.get("/user", async(req,res)=>{
-  const userEmail = req.body.emailId;
-
-  try{
-    const users = await User.find({emailId:userEmail});//in place of find we can also use findOne to find out one object from many of same emailId
-    //findOne() returns the first matching document based on MongoDB’s internal order, which is not guaranteed unless sorting is applied. 
-    if(users.length === 0){
-      res.status(404).send("user not found");
-    }
-    else{
-      res.send(users);
-    }
-  }
-  catch(err){
-    res.status(400).send("something went wrong");
-  }
-
-})
-
-// Feed API - GET/feed - get all the users from the database
-app.get("/feed",async(req,res)=>{
-  try{
-    const users = await User.find({});
-    res.send(users);
-  }
-  catch(err){
-    res.status(400).send("something went wrong");
-  }
-})
-
-//to delete a user from the database
-app.delete("/user",async(req,res)=>{
-  const userId = req.body.userId;
-  try{
-        const user = await User.findByIdAndDelete({_id: userId});
-        // Issue a MongoDB findOneAndDelete() command by a document's _id field. In other words, findByIdAndDelete(id) is a shorthand for findOneAndDelete({ _id: id }).
-    //const user = await User.findByIdAndDelete(userId);
-    res.send("User deleted successfully");
-  }
-  catch(err){
-    res.status(400).send("Somenthing went wrong");
-  }
-})
-
-//Update data of the user
-app.patch("/user/:userId",async(req,res)=>{
-  const userId = req.params?.userId;
-  const data = req.body;
-  
-  try{
-
-    //if the user is updating its profile it can update certain fields in the API
-  const ALLOWED_UPDATES = ["photoURL","about","gender","age","skills"]
-
-  const isUpdateAllowed = Object.keys(data).every((k)=>ALLOWED_UPDATES.includes(k));
-  if(!isUpdateAllowed){
-    throw new Error("Update not Allowed");
-  }
-
-  if(data?.skills.length >10){
-    throw new Error("Skilss cant be more than 10");
-  }
-
-
-    await User.findByIdAndUpdate({ _id : userId },data,{
-      returnDocument : "after",
-      runValidators : true,
-    });
-    res.send("User updated successfully");
-
-  }catch(err){
-    res.status(400).send("Update Failed : "+err.message);
   }
 });
 
+app.get("/profile", async (req, res) => {
+  try {
+    const cookies = req.cookies;
+    const { token } = cookies;
+
+    if (!token) {
+      throw new Error("Invalid token");
+    }
+    //validate my token
+
+    const decodedMessage = await jwt.verify(token, "DEV@Tinder$790");
+
+    const { _id } = decodedMessage;
+    const user = await User.findById(_id);
+    if (!user) {
+      throw new Error("User does not exist");
+    }
+
+    res.send(user);
+  } catch (err) {
+    res.status(400).send("ERROR :" + err.message);
+  }
+});
+
+//get user by email
+app.get("/user", async (req, res) => {
+  const userEmail = req.body.emailId;
+
+  try {
+    const users = await User.find({ emailId: userEmail }); //in place of find we can also use findOne to find out one object from many of same emailId
+    //findOne() returns the first matching document based on MongoDB’s internal order, which is not guaranteed unless sorting is applied.
+    if (users.length === 0) {
+      res.status(404).send("user not found");
+    } else {
+      res.send(users);
+    }
+  } catch (err) {
+    res.status(400).send("something went wrong");
+  }
+});
+
+// Feed API - GET/feed - get all the users from the database
+app.get("/feed", async (req, res) => {
+  try {
+    const users = await User.find({});
+    res.send(users);
+  } catch (err) {
+    res.status(400).send("something went wrong");
+  }
+});
+
+//to delete a user from the database
+app.delete("/user", async (req, res) => {
+  const userId = req.body.userId;
+  try {
+    const user = await User.findByIdAndDelete({ _id: userId });
+    // Issue a MongoDB findOneAndDelete() command by a document's _id field. In other words, findByIdAndDelete(id) is a shorthand for findOneAndDelete({ _id: id }).
+    //const user = await User.findByIdAndDelete(userId);
+    res.send("User deleted successfully");
+  } catch (err) {
+    res.status(400).send("Somenthing went wrong");
+  }
+});
+
+//Update data of the user
+app.patch("/user/:userId", async (req, res) => {
+  const userId = req.params?.userId;
+  const data = req.body;
+
+  try {
+    //if the user is updating its profile it can update certain fields in the API
+    const ALLOWED_UPDATES = ["photoURL", "about", "gender", "age", "skills"];
+
+    const isUpdateAllowed = Object.keys(data).every((k) =>
+      ALLOWED_UPDATES.includes(k),
+    );
+    if (!isUpdateAllowed) {
+      throw new Error("Update not Allowed");
+    }
+
+    if (data?.skills.length > 10) {
+      throw new Error("Skilss cant be more than 10");
+    }
+
+    await User.findByIdAndUpdate({ _id: userId }, data, {
+      returnDocument: "after",
+      runValidators: true,
+    });
+    res.send("User updated successfully");
+  } catch (err) {
+    res.status(400).send("Update Failed : " + err.message);
+  }
+});
 
 connectDB()
   .then(() => {
