@@ -1,9 +1,11 @@
+
 const mongoose = require("mongoose");
 
 const connectionRequestSchema = new mongoose.Schema(
   {
     fromUserId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // refernce to the user collection
       required: true,
     },
     toUserId: {
@@ -22,7 +24,7 @@ const connectionRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
- //ConnectionRequest.find({fromUserId: 273478465864786587, toUserId: 273478465864786587})
+// ConnectionRequest.find({fromUserId: 273478465864786587, toUserId: 273478465864786587})
 
 connectionRequestSchema.index({ fromUserId: 1, toUserId: 1 });
 
